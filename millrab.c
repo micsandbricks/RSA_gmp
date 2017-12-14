@@ -9,7 +9,7 @@
 #define MILLER_RABBIN_K_PARAM 40
 
 void sd_extract(mpz_t* s, mpz_t* d, mpz_t n);
-int miller_rabbin(mpz_t n, mpz_t k);
+int miller_rabbin(mpz_t n, int k);
 
 int main()
 {
@@ -21,15 +21,14 @@ int main()
 	mpz_t s;
 	mpz_t d;
 
-	mpz_t k; /* A parameter decidig accuracy for Miller-Rabbin. */
+	int k = 40; /* A parameter deciding accuracy for Miller-Rabbin. */
 	
 	/* Initiate all gmp variables. */
 	mpz_init(n);
 	mpz_init(s);
 	mpz_init(d);
-	mpz_init(k);
 
-	mpz_set_str(n, "179424793", 10);
+	mpz_set_str(n, "15486489", 10);
 	
 	gmp_printf("n: %Zd\n", n);
 
@@ -55,28 +54,84 @@ int main()
  * 1: If n is "probably prime"
  * 0: If n is a composite number.
  * */
-int miller_rabbin(mpz_t n, mpz_t k)
+int miller_rabbin(mpz_t n, int k)
 {
 
-	mpz_t rand_int; /* A random value used to generate the a parameter. */ 
-	mpz_t n_1diff; /* Holds the constant n - 1 used for generating random a */
+	/* Iter. vars. */
+	int i;
+	mpz_t j;
 
-	gmp_randstate_t rand_state; /* Randomized state. */
+	/* Booleans */
+	int continue_witness = 0;
+	int mpz_x_eq_1;
+	int mpz_x_eq_n_sub_1;
+	
+	/* "Helper vars". */
+	mpz_t n_sub_1, n_sub_3, s_sub_1;
 
-	/* Initialize the variable which holds n - 1 */
-	mpz_init(n_1diff);
-	mpz_sub_ui(n_1diff, n, 1);
+	/* Major parameters of the Miller-Rabbin algorithm. */
+	mpz_t x, a, s, d;
+	
+	gmp_randstate_t rand_state; /* Randomized state used to generate a. */
 
-	/* Use a Mersenne Twister algorithm to initialize randomized state */
+	/* Initiate all gmp variables to zero. */
+	mpz_init(j);
+	mpz_init(n_sub_1);
+	mpz_init(n_sub_3);
+	mpz_init(s_sub_1);
+	mpz_init(x);
+	mpz_init(a);
+	mpz_init(s);
+	mpz_init(d);
+
+	mpz_sub_ui(n_sub_1, n, 1);
+	mpz_sub_ui(n_sub_3, n, 3);
+
 	gmp_randinit_mt(rand_state);
 
-	while (1)
+	/* Extract the s and d parameters. */
+	sd_extract(&s, &d, n);
+	
+	mpz_sub_ui(s_sub_1, s, 1);
+	
+	for (i = 0; i < k; i++)
 	{
-		/* Initialize the random integer. */
-		mpz_urandomm(rand_int, rand_state, n_1diff);
-		mpz_add_ui(rand_int, rand_int, 2);
-		gmp_printf("rand_int: %Zd\n", rand_int);
+		continue_witness = 0;
+		
+		/* Initialize the random integer a. */
+		mpz_urandomm(a, rand_state, n_sub_3);
+		mpz_add_ui(a, a, 2);
+
+		/* Initialize x. */
+		mpz_pow_ui(x, a, mpz_get_ui(d));
+		mpz_mod(x, x, n);
+	        
+		mpz_x_eq_1 = (mpz_cmp_ui(x,1) == 0);
+		mpz_x_eq_n_sub_1 = (mpz_cmp(x, n_sub_1) == 0);
+		if (mpz_x_eq_1 || mpz_x_eq_n_sub_1)
+		{
+			continue;
+		}
+		for (mpz_init(j); mpz_cmp(j, s_sub_1) < 0; mpz_add_ui(j, j, 1))
+		{
+			mpz_pow_ui(x, x, 2);
+			mpz_mod(x, x, n);
+			mpz_x_eq_1 = (mpz_cmp_ui(x,1) == 0);
+			mpz_x_eq_n_sub_1 = (mpz_cmp(x, n_sub_1) == 0);
+			
+			if (mpz_x_eq_1)
+				return IS_COMPOSITE;
+			else if (mpz_x_eq_n_sub_1)
+			{
+				continue_witness = 1;
+				break;
+			}
+		}
+		if (continue_witness)
+			continue;
+		return IS_COMPOSITE;
 	}
+	return IS_PROBABLY_PRIME;
 }
 
 /* Sets positive integer pointers s and d, d odd, where:
