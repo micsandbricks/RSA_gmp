@@ -61,7 +61,6 @@ void generate_keys(mpz_t* rsa_mod, mpz_t* pub_exp, mpz_t* priv_exp)
 	mpz_t p, q, p_max, q_max;
 	/* int p_q_offset; */
 
-
 	/* Initialize all prime generation variables. */
 	mpz_init(p);
 	mpz_init(q);
@@ -86,8 +85,6 @@ void generate_keys(mpz_t* rsa_mod, mpz_t* pub_exp, mpz_t* priv_exp)
 		}
 	}
 	
-	gmp_printf("p after primezation: %Zd\n", p);
-
 	while (!q_is_prime)
 	{
 		mpz_urandomm(q, rand_state, p_max);
@@ -97,8 +94,10 @@ void generate_keys(mpz_t* rsa_mod, mpz_t* pub_exp, mpz_t* priv_exp)
 			q_is_prime = miller_rabbin(p, MILLER_RABBIN_K_PARAM);
 		}
 	}
-	
-	gmp_printf("p after primezation: %Zd\n", q);
+
+	/* Compute the RSA modulus. */
+	mpz_mul(*rsa_mod, p, q);
+	gmp_printf("The rsa modulus is: %Zd", rsa_mod);
 }
 
 /* Tells us whether a number is prime using the probabilistic
