@@ -61,6 +61,9 @@ void generate_keys(mpz_t* rsa_mod, mpz_t* pub_exp, mpz_t* priv_exp)
 	mpz_t p, q, p_max, q_max;
 	/* int p_q_offset; */
 
+	/* Helper variables for calculating Carmichael function of RSA modulus. */
+	mpz_t carmichael_function, p_sub_1, q_sub_1;
+
 	/* Initialize all prime generation variables. */
 	mpz_init(p);
 	mpz_init(q);
@@ -69,12 +72,19 @@ void generate_keys(mpz_t* rsa_mod, mpz_t* pub_exp, mpz_t* priv_exp)
 	mpz_set_ui(p_max, 10000);
 	mpz_set_ui(q_max, 10000);
 
+	/* Initiates Carmichael function variables. */
+	mpz_init(carmichael_function);
+	mpz_init(p_sub_1);
+	mpz_init(q_sub_1);
+
 	/* Setting up random state and seed. */
 	gmp_randinit_mt(rand_state);
 	gmp_randseed_ui(rand_state, seed);
 
 	/* Generate the prime factors for the RSA modulus.
-	 * NOTE: At the moment we generate only up to max unsigned int for testing. */
+	 * NOTE: At the moment we generate only up to max unsigned int for testing
+	 * because this implementation of Miller-Rabbin seems a bit slow at the moment. 
+	 * */
 	while (!p_is_prime)
 	{
 		mpz_urandomm(p, rand_state, p_max);
@@ -90,14 +100,23 @@ void generate_keys(mpz_t* rsa_mod, mpz_t* pub_exp, mpz_t* priv_exp)
 		mpz_urandomm(q, rand_state, p_max);
 		if (mpz_odd_p(q) != 0)
 		{
-			gmp_printf("Randomized p: %Zd\n", q);
+			gmp_printf("Randomized q: %Zd\n", q);
 			q_is_prime = miller_rabbin(p, MILLER_RABBIN_K_PARAM);
 		}
 	}
 
+	gmp_printf("p: %Zd\nq: %Zd\n", p, q);
+
 	/* Compute the RSA modulus. */
 	mpz_mul(*rsa_mod, p, q);
-	gmp_printf("The rsa modulus is: %Zd", rsa_mod);
+	gmp_printf("The rsa modulus is: %Zd\n", rsa_mod);
+
+	/* Calculate Carmichael's totient function. */
+	mpz_sub_ui(p_sub_1, p, 1);	
+	mpz_sub_ui(q_sub_1, q, 1);
+	mpz_lcm(carmichael_function, p_sub_1, q_sub_1);
+	gmp_printf("The carmichael function  is: %Zd\n", carmichael_function);
+
 }
 
 /* Tells us whether a number is prime using the probabilistic
