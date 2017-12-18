@@ -43,9 +43,6 @@ int main()
  */
 void generate_keys(mpz_t* rsa_mod, mpz_t* pub_exp, mpz_t* priv_exp)
 {
-	/* Boolean */
-	int p_is_prime = 0, q_is_prime = 0;
-
 	/* Randomization*/
 	gmp_randstate_t rand_state; /* Randomized state used to generate p and q. */
 	int seed  = time(NULL);
@@ -59,10 +56,13 @@ void generate_keys(mpz_t* rsa_mod, mpz_t* pub_exp, mpz_t* priv_exp)
 	 * TO BE IMPLEMENTED: p_q_offset: Randomized integer, used to offset the max value of
 	 *             q from p to make factorization harder.*/
 	mpz_t p, q, p_max, q_max;
+	int p_is_prime = 0, q_is_prime = 0;
 	/* int p_q_offset; */
 
-	/* Helper variables for calculating Carmichael function of RSA modulus. */
+	/* Variables for computing and storing the Carmichael function of RSA modulus. */
 	mpz_t carmichael_function, p_sub_1, q_sub_1;
+
+	/* Variables used to calculate the public (or "encryption") exponent. */
 
 	/* Initialize all prime generation variables. */
 	mpz_init(p);
@@ -72,10 +72,17 @@ void generate_keys(mpz_t* rsa_mod, mpz_t* pub_exp, mpz_t* priv_exp)
 	mpz_set_ui(p_max, 10000);
 	mpz_set_ui(q_max, 10000);
 
-	/* Initiates Carmichael function variables. */
+	/* Initiates variables for computing Carmichael function. */
 	mpz_init(carmichael_function);
 	mpz_init(p_sub_1);
 	mpz_init(q_sub_1);
+
+	/* Initiates variables for computing the public exponent. */
+	mpz_t temp_pub_exp, pub_exp_gcd, carmichael_function_sub_2;
+	mpz_init(temp_pub_exp);
+	mpz_init(pub_exp_gcd);
+	mpz_init(carmichael_function_sub_2);
+	int pub_exp_found = 0;
 
 	/* Setting up random state and seed. */
 	gmp_randinit_mt(rand_state);
@@ -83,7 +90,7 @@ void generate_keys(mpz_t* rsa_mod, mpz_t* pub_exp, mpz_t* priv_exp)
 
 	/* Generate the prime factors for the RSA modulus.
 	 * NOTE: At the moment we generate only up to max unsigned int for testing
-	 * because this implementation of Miller-Rabbin seems a bit slow at the moment. 
+	 * because this implementation of Miller-Rabbin seems a bit slow at the moment.
 	 * */
 	while (!p_is_prime)
 	{
@@ -94,7 +101,7 @@ void generate_keys(mpz_t* rsa_mod, mpz_t* pub_exp, mpz_t* priv_exp)
 			p_is_prime = miller_rabbin(p, MILLER_RABBIN_K_PARAM);
 		}
 	}
-	
+
 	while (!q_is_prime)
 	{
 		mpz_urandomm(q, rand_state, p_max);
@@ -112,11 +119,25 @@ void generate_keys(mpz_t* rsa_mod, mpz_t* pub_exp, mpz_t* priv_exp)
 	gmp_printf("The rsa modulus is: %Zd\n", rsa_mod);
 
 	/* Calculate Carmichael's totient function. */
-	mpz_sub_ui(p_sub_1, p, 1);	
+	mpz_sub_ui(p_sub_1, p, 1);
 	mpz_sub_ui(q_sub_1, q, 1);
 	mpz_lcm(carmichael_function, p_sub_1, q_sub_1);
 	gmp_printf("The carmichael function  is: %Zd\n", carmichael_function);
 
+	/* Calculate the public exponent.
+	 * Randomly select a number in (1, carmichael_function), check if
+	 * the number and carmichael_function are coprime, if so , set the
+	 * public exponent to be that number.*/
+	while (!pub_exp_found)
+	{
+		mpz_sub_ui(carmichael_function_sub_2, carmichael_function, 2);
+		mpz_urandomm(temp_pub_exp, rand_state, carmichael_function_sub_2);
+		mpz_add_ui(temp_pub_exp, temp_pub_exp, 2);
+		mpz_gcd(pub_exp_gcd, temp_pub_exp, carmichael_function);
+		pub_exp_found = (mpz_cmp_ui(pub_exp_gcd, 1) ==  0);
+	}
+	mpz_set(*pub_exp, temp_pub_exp);
+	gmp_printf("The public exponent: %Zd\n", pub_exp);
 }
 
 /* Tells us whether a number is prime using the probabilistic
