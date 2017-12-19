@@ -10,18 +10,42 @@
 #define MILLER_RABBIN_K_PARAM 40
 
 void sd_extract(mpz_t* s, mpz_t* d, mpz_t n);
-void generate_keys(mpz_t* rsa_modulus, mpz_t* public_exp, mpz_t* private_exp);
+void generate_key_components(mpz_t* rsa_modulus, mpz_t* public_exp, mpz_t* private_exp);
 int miller_rabbin(mpz_t n, int k);
 
+struct Public_Key {
+	mpz_t pub_exp;
+	mpz_t rsa_mod;
+};
+
+struct Private_Key {
+	mpz_t priv_exp;
+};
 
 int main()
 {
+	struct Public_Key Pub_Key;
+	struct Private_Key Priv_Key;
 	mpz_t rsa_mod, pub_exp, priv_exp;
 
 	mpz_init(rsa_mod);
 	mpz_init(pub_exp);
 	mpz_init(priv_exp);
-	generate_keys(&rsa_mod, &pub_exp, &priv_exp);
+	generate_key_components(&rsa_mod, &pub_exp, &priv_exp);
+
+
+	mpz_init(Pub_Key.pub_exp);
+	mpz_init(Pub_Key.rsa_mod);
+	mpz_init(Priv_Key.priv_exp);
+
+	mpz_set(Pub_Key.pub_exp, pub_exp);
+	mpz_set(Pub_Key.rsa_mod, rsa_mod);
+
+	mpz_set(Priv_Key.priv_exp, priv_exp);
+
+	gmp_printf("Public Key public exponent: %Zd\n", Pub_Key.pub_exp);
+	gmp_printf("Public Key RSA modulus: %Zd\n", Pub_Key.rsa_mod);
+	gmp_printf("Public Key private exponent: %Zd\n", Priv_Key.priv_exp);
 }
 
 
@@ -41,7 +65,7 @@ int main()
  * Returns:
  * Void (Sets all pointers at the end of the function).
  */
-void generate_keys(mpz_t* rsa_mod, mpz_t* pub_exp, mpz_t* priv_exp)
+void generate_key_components(mpz_t* rsa_mod, mpz_t* pub_exp, mpz_t* priv_exp)
 {
 	/* Randomization */
 	gmp_randstate_t rand_state; /* Randomized state used to generate p and q. */
@@ -138,10 +162,12 @@ void generate_keys(mpz_t* rsa_mod, mpz_t* pub_exp, mpz_t* priv_exp)
 		mpz_gcd(pub_exp_gcd, temp_pub_exp, carmichael_function);
 		pub_exp_found = (mpz_cmp_ui(pub_exp_gcd, 1) ==  0);
 	}
+
 	mpz_set(*pub_exp, temp_pub_exp);
 	gmp_printf("The public key exponent: %Zd\n", *pub_exp);
 
-	/* Calculate the private key exponent. */
+	/* Calculate the private key exponent, which is the modular multiplicative inverse
+	 * of pub_exp modulo carmichael_function. */
 	mpz_invert(*priv_exp, *pub_exp, carmichael_function);
 	gmp_printf("The private key exponent: %Zd\n", *priv_exp);
 }
