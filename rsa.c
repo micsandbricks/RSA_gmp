@@ -43,7 +43,7 @@ int main()
  */
 void generate_keys(mpz_t* rsa_mod, mpz_t* pub_exp, mpz_t* priv_exp)
 {
-	/* Randomization*/
+	/* Randomization */
 	gmp_randstate_t rand_state; /* Randomized state used to generate p and q. */
 	int seed  = time(NULL);
 
@@ -54,7 +54,8 @@ void generate_keys(mpz_t* rsa_mod, mpz_t* pub_exp, mpz_t* priv_exp)
 	 * p_max: The max value of p.
 	 * q_max: The max value, (to-be) offset in size by p_q_offset
 	 * TO BE IMPLEMENTED: p_q_offset: Randomized integer, used to offset the max value of
-	 *             q from p to make factorization harder.*/
+	 *             q from p to make factorization harder.
+	 */
 	mpz_t p, q, p_max, q_max;
 	int p_is_prime = 0, q_is_prime = 0;
 	/* int p_q_offset; */
@@ -63,7 +64,9 @@ void generate_keys(mpz_t* rsa_mod, mpz_t* pub_exp, mpz_t* priv_exp)
 	mpz_t carmichael_function, p_sub_1, q_sub_1;
 
 	/* Variables used to calculate the public (or "encryption") exponent. */
-
+	mpz_t temp_pub_exp, pub_exp_gcd, carmichael_function_sub_2;
+	int pub_exp_found = 0;
+	
 	/* Initialize all prime generation variables. */
 	mpz_init(p);
 	mpz_init(q);
@@ -77,13 +80,11 @@ void generate_keys(mpz_t* rsa_mod, mpz_t* pub_exp, mpz_t* priv_exp)
 	mpz_init(p_sub_1);
 	mpz_init(q_sub_1);
 
-	/* Initiates variables for computing the public exponent. */
-	mpz_t temp_pub_exp, pub_exp_gcd, carmichael_function_sub_2;
+	/* Initiates variables for computing the public key exponent. */
 	mpz_init(temp_pub_exp);
 	mpz_init(pub_exp_gcd);
 	mpz_init(carmichael_function_sub_2);
-	int pub_exp_found = 0;
-
+	
 	/* Setting up random state and seed. */
 	gmp_randinit_mt(rand_state);
 	gmp_randseed_ui(rand_state, seed);
@@ -91,7 +92,7 @@ void generate_keys(mpz_t* rsa_mod, mpz_t* pub_exp, mpz_t* priv_exp)
 	/* Generate the prime factors for the RSA modulus.
 	 * NOTE: At the moment we generate only up to max unsigned int for testing
 	 * because this implementation of Miller-Rabbin seems a bit slow at the moment.
-	 * */
+	 */
 	while (!p_is_prime)
 	{
 		mpz_urandomm(p, rand_state, p_max);
@@ -124,10 +125,11 @@ void generate_keys(mpz_t* rsa_mod, mpz_t* pub_exp, mpz_t* priv_exp)
 	mpz_lcm(carmichael_function, p_sub_1, q_sub_1);
 	gmp_printf("The carmichael function  is: %Zd\n", carmichael_function);
 
-	/* Calculate the public exponent.
+	/* Calculate the public key exponent.
 	 * Randomly select a number in (1, carmichael_function), check if
 	 * the number and carmichael_function are coprime, if so , set the
-	 * public exponent to be that number.*/
+	 * public exponent to be that number.
+	 */
 	while (!pub_exp_found)
 	{
 		mpz_sub_ui(carmichael_function_sub_2, carmichael_function, 2);
@@ -137,9 +139,55 @@ void generate_keys(mpz_t* rsa_mod, mpz_t* pub_exp, mpz_t* priv_exp)
 		pub_exp_found = (mpz_cmp_ui(pub_exp_gcd, 1) ==  0);
 	}
 	mpz_set(*pub_exp, temp_pub_exp);
-	gmp_printf("The public exponent: %Zd\n", pub_exp);
+	gmp_printf("The public key exponent: %Zd\n", *pub_exp);
+
+	/* Calculate the private key exponent. */
+	mpz_invert(*priv_exp, *pub_exp, carmichael_function);
+	gmp_printf("The private key exponent: %Zd\n", *priv_exp);
 }
 
+/* The extended Euclidean algorithm is used to calculate the private key exponent,
+ * which is the modular multiplicative inverse of "pub_exp modulo carmichael_function".
+ *
+ * Arguments:
+ * mpz_t* priv_exp: A pointer to the variable which is our private key exponent.
+ * mpz_t pub_exp: The public key exponent.
+ * mpz_t carmichael_function : The carmichael function.
+ *
+ * Returns:
+ * void */
+/*
+void extended_euclidean(mpz_t* priv_exp, mpz_t pub_exp, mpz_t carmichael_function)
+{
+	mpz_t temp_val, r, old_r, quotient, s, old_s, t, old_t;
+
+	mpz_init(temp_val);
+	mpz_init(r);
+	mpz_init(old_r);
+	mpz_init(quotient);
+	mpz_init(s);
+	mpz_init(old_s);
+	mpz_init(t);
+	mpz_init(old_t);
+
+	mpz_set(old_r, a);
+	mpz_set(r, b);
+	mpz_set_ui(old_s, 1);
+	mpz_set_ui(s, 0);
+	mpz_set_ui(old_t, 0);
+	mpz_set_ui(t, 1);
+	
+	while (true)
+	{
+	
+		while(mpz_compare_ui(r,0) == 0)
+		{
+			quotient = mpz_div();
+		}
+	}
+
+}
+*/
 /* Tells us whether a number is prime using the probabilistic
  * version of the Miller-Rabbin primality test.
  *
